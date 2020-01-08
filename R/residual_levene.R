@@ -4,7 +4,7 @@
 #'models using Levene's test.
 #'
 #'Levene's test is often suggested as a diagnostic check for homoskedasticity in
-#'ANOVA analyses. This function works for linear regression (\code{\link{lm}})
+#'ANOVA analyses. This function works for linear models (\code{\link{lm}})
 #'only.
 #'
 #'@param model_list A list of regression models.
@@ -31,7 +31,7 @@
 #'
 #'  residual_levene(model_list = mList)
 #'
-#'@importFrom stats pf
+#'@importFrom stats pf sigma
 #'
 #'@export
 
@@ -43,6 +43,15 @@ residual_levene = function(model_list, model_names=NULL){
 
   model_list_checks(model_list)
 
+  model_family = stats::family(model_list[[1]])$family
+  if(model_family != 'gaussian'){
+    stop('Residual test only appropriate for normally distributed errors.')
+  }
+
+  if(class(model_list[[1]])[1] == 'svyglm'){
+    warning('Analysis does not use survey weights.')
+  }
+
   if(!is.null(model_names)){
     model_names_checks(model_list, model_names)
   }
@@ -52,15 +61,15 @@ residual_levene = function(model_list, model_names=NULL){
 
   M = length(model_list)
 
-  residList = lapply(model_list, function(m) m$residuals)
+  residList = lapply(model_list, function(m) get_resid(m))
 
-  nList = lapply(model_list, function(m) nrow(m$model))
+  nList = lapply(model_list, function(m) get_n(m))
   n = Reduce('+', nList)
 
-  dfList = lapply(model_list, function(m) m$df.residual)
+  dfList = lapply(model_list, function(m) get_df(m))
   dfSum = Reduce('+', dfList)
 
-  resid_sds = sapply(model_list, function(m) summary(m)$sigma)
+  resid_sds = sapply(model_list, function(m) sigma(m))
 
   if(is.null(model_names)){
     names(resid_sds) = paste('Model', 1:length(model_list))
